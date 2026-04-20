@@ -29,37 +29,58 @@ const TransactionForm = ({ transaction, onClose, onSuccess }) => {
         date: transaction.date,
         note: transaction.note || ''
       });
+    } else {
+      // Reset form for new transaction
+      setFormData({
+        amount: '',
+        type: 'expense',
+        category: 'Food',
+        date: new Date().toISOString().split('T')[0],
+        note: ''
+      });
     }
   }, [transaction]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Auto-categorization based on note
-    if (name === 'note') {
+    // Handle type change (Income/Expense toggle)
+    if (name === 'type') {
+      // Set default category based on selected type
+      const defaultCategory = value === 'income' ? 'Salary' : 'Food';
+      setFormData(prev => ({ 
+        ...prev, 
+        type: value,
+        category: defaultCategory  // This ensures the actual data updates
+      }));
+    } 
+    // Handle category change
+    else if (name === 'category') {
+      setFormData(prev => ({ ...prev, category: value }));
+    }
+    // Handle other fields (amount, date, note)
+    else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+    
+    // Auto-categorization based on note (only for expenses)
+    if (name === 'note' && formData.type === 'expense') {
       const lowerNote = value.toLowerCase();
-      const expenseCategories = categories.expense;
-      let matchedCategory = null;
       
       const categoryKeywords = {
-        Food: ['zomato', 'swiggy', 'restaurant', 'food', 'pizza', 'burger', 'meal'],
-        Travel: ['uber', 'ola', 'taxi', 'bus', 'train', 'flight', 'fuel', 'petrol'],
-        Shopping: ['amazon', 'flipkart', 'mall', 'shopping', 'clothes'],
-        Entertainment: ['netflix', 'prime', 'movie', 'cinema', 'spotify'],
-        Health: ['hospital', 'doctor', 'medicine', 'clinic', 'gym']
+        Food: ['zomato', 'swiggy', 'restaurant', 'food', 'pizza', 'burger', 'meal', 'dinner', 'lunch', 'breakfast', 'cafe'],
+        Travel: ['uber', 'ola', 'taxi', 'bus', 'train', 'flight', 'fuel', 'petrol', 'diesel', 'metro', 'cab'],
+        Shopping: ['amazon', 'flipkart', 'mall', 'shopping', 'clothes', 'apparel', 'zara', 'nike', 'adidas'],
+        Entertainment: ['netflix', 'prime', 'movie', 'cinema', 'spotify', 'youtube', 'disney', 'hotstar', 'game'],
+        Health: ['hospital', 'doctor', 'medicine', 'clinic', 'gym', 'fitness', 'pharmacy', 'medical']
       };
       
       for (const [category, keywords] of Object.entries(categoryKeywords)) {
         if (keywords.some(keyword => lowerNote.includes(keyword))) {
-          matchedCategory = category;
+          setFormData(prev => ({ ...prev, category: category }));
+          toast.success(`Auto-categorized as ${category}`);
           break;
         }
-      }
-      
-      if (matchedCategory) {
-        setFormData(prev => ({ ...prev, category: matchedCategory }));
-        toast.success(`Auto-categorized as ${matchedCategory}`);
       }
     }
   };
@@ -76,11 +97,16 @@ const TransactionForm = ({ transaction, onClose, onSuccess }) => {
     
     try {
       const transactionData = {
-        ...formData,
         amount: parseFloat(formData.amount),
+        type: formData.type,
+        category: formData.category,
+        date: formData.date,
+        note: formData.note || '',
         userId: user.uid,
         createdAt: new Date().toISOString()
       };
+      
+      console.log('Saving transaction:', transactionData); // Debug log
       
       if (transaction) {
         // Update existing transaction
@@ -96,7 +122,7 @@ const TransactionForm = ({ transaction, onClose, onSuccess }) => {
       if (onClose) onClose();
     } catch (error) {
       console.error('Error saving transaction:', error);
-      toast.error('Error saving transaction');
+      toast.error('Error saving transaction: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -196,6 +222,9 @@ const TransactionForm = ({ transaction, onClose, onSuccess }) => {
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white"
               placeholder="e.g., Zomato order, Uber ride, etc."
             />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              💡 Tip: Add keywords like "Zomato", "Uber", "Netflix" for auto-categorization
+            </p>
           </div>
           
           <div className="flex space-x-3">
